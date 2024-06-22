@@ -9,9 +9,9 @@ var app = builder.Build();
 
 //ApiController apiController = new ApiController();
 DB db = new DB();
+AuthSystem authSystem = new AuthSystem(db);
 
 app.MapGet("/", () => "Hello World!");
-
 
 app.MapPost("/login", async (HttpContext ctx) => 
 {
@@ -23,7 +23,7 @@ app.MapPost("/login", async (HttpContext ctx) =>
     {
         var registerData = JsonSerializer.Deserialize<RegisterDto>(body);
 
-        var existingUser = db.LogIn(registerData);
+        var existingUser = authSystem.LogIn(registerData);
 
         ctx.Response.StatusCode = StatusCodes.Status200OK;
         await ctx.Response.WriteAsync($"You loged in successfully your id: {existingUser.Id}");
@@ -53,7 +53,7 @@ app.MapPost("/register", async (HttpContext ctx) =>
     {
         var registerData = JsonSerializer.Deserialize<RegisterDto>(body);
 
-        db.RegisterUser(registerData);
+        authSystem.RegisterUser(registerData);
 
         ctx.Response.StatusCode = StatusCodes.Status200OK;
         await ctx.Response.WriteAsync("User was successfully created");
@@ -73,8 +73,101 @@ app.MapPost("/register", async (HttpContext ctx) =>
     }
 });
 
+app.Run();
 
 
+record class LoginDto(string name, string password);
+public class UserData
+{
+    public Guid Id { get; } = Guid.NewGuid();
+
+    public string Login { get; init; }
+
+    public string PasswordHash { get; init; }
+
+    public UserData(string login, string password)
+    {
+        Login = login;
+        PasswordHash = password;
+    }
+}
+
+public class RegisterDto
+{
+    public string Login { get; init; }
+    public string Password { get; init; }
+};
+
+public class AuthSystem
+{
+    DB _DB { get; init; }
+
+    public AuthSystem(DB dataBase)
+    {
+        _DB = dataBase;
+    }
+
+    private static string ConvertPasswordToHash(string password)
+    {
+        return Encoding.UTF8.GetString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
+    }
+
+    private static bool IsPasswordHashesEquals(UserData user, string incomePassword)
+    {
+        if (user.PasswordHash == ConvertPasswordToHash(incomePassword))
+            return true;
+        return false;
+    }
+
+    public UserData LogIn(RegisterDto registerData)
+    {
+        var user = _DB.FindUserByLogin(registerData.Login);
+
+        if (!IsPasswordHashesEquals(user, registerData.Password))
+            throw new Exception("Password is incorrect");
+
+        return user;
+    }
+
+    public UserData RegisterUser(RegisterDto registerData)
+    {
+        if (_DB.IsLoginExists(registerData.Login))
+            throw new Exception("Login already used");
+
+        var createdUser = new UserData(registerData.Login, ConvertPasswordToHash(registerData.Password));
+        _DB.users.Add(createdUser);
+        return createdUser;
+    }
+}
+
+public class DB
+{
+    public List<UserData> users = new List<UserData>();
+
+    public bool IsLoginExists(string login)
+    {
+        foreach (var item in users)
+        {
+            if (item.Login == login) // бля сравнивать строки == просто гениально
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public UserData FindUserByLogin(string login)
+    {
+        foreach (var item in users)
+        {
+            if (item.Login == login) // бля сравнивать строки == просто гениально
+            {
+                return item;
+            }
+        }
+        throw new Exception($"User with this login:{login} not found");
+    }
+}
 
 //app.MapPost("/createUser", async (HttpContext context) =>
 //{
@@ -108,7 +201,7 @@ app.MapPost("/register", async (HttpContext ctx) =>
 //                // Add user to the list (ensure thread-safety)
 //                lock (apiController.list)
 //                {
-                    
+
 //                    apiController.list.Add(user);
 //                }
 //            });
@@ -170,92 +263,6 @@ app.MapPost("/register", async (HttpContext ctx) =>
 
 
 
-
-record class LoginDto(string name, string password);
-public class UserData
-{
-    public Guid Id { get; } = Guid.NewGuid();
-
-    public string Login { get; init; }
-
-    public string PasswordHash { get; init; }
-
-    public UserData(string login, string password)
-    {
-        Login = login;
-        PasswordHash = password;
-    }
-}
-
-public class RegisterDto
-{
-    public string Login { get; init; }
-    public string Password { get; init; }
-};
-
-public class DB
-{
-    public List<UserData> users = new List<UserData>();
-
-    public bool IsLoginExists(string login)
-    {
-        foreach (var item in users)
-        {
-            if (item.Login == login) // бля сравнивать строки == просто гениально
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public UserData FindUserByLogin(string login)
-    {
-        foreach (var item in users)
-        {
-            if (item.Login == login) // бля сравнивать строки == просто гениально
-            {
-                return item;
-            }
-        }
-        throw new Exception($"User with this login:{login} not found");
-    }
-
-    private static string ConvertPasswordToHash(string password)
-    {
-        return Encoding.UTF8.GetString(SHA256.HashData(Encoding.UTF8.GetBytes(password)));
-    }
-
-    private static bool IsPasswordHashesEquals(UserData user, string incomePassword)
-    {
-        if(user.PasswordHash == ConvertPasswordToHash(incomePassword))
-            return true;
-        return false;
-    }
-
-    
-
-    public UserData LogIn(RegisterDto registerData) 
-    {
-        var user = FindUserByLogin(registerData.Login);
-
-        if (!IsPasswordHashesEquals(user, registerData.Password))
-            throw new Exception("Password is incorrect");
-        
-        return user;
-    }
-
-    public UserData RegisterUser(RegisterDto registerData)
-    {
-        if (IsLoginExists(registerData.Login))
-            throw new Exception("Login already used");
-
-        var createdUser = new UserData(registerData.Login, ConvertPasswordToHash(registerData.Password));
-        users.Add(createdUser);
-        return createdUser;
-    }
-
-}
 
 ////
 
