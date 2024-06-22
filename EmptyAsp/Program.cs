@@ -73,6 +73,28 @@ app.MapPost("/register", async (HttpContext ctx) =>
     }
 });
 
+app.MapGet("/getAllUsers", async (HttpContext context) =>
+{
+    try
+    {
+        context.Response.StatusCode = StatusCodes.Status200OK;
+        var users = await Task.Run(() =>
+        {
+            return db.users;
+        });
+
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(users);
+    }
+    catch (Exception ex)
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+        await context.Response.WriteAsync(ex.Message);
+    }
+});
+
 app.Run();
 
 
@@ -222,27 +244,7 @@ public class DB
 //    }
 //});
 
-//app.MapGet("/getAllUsers", async (HttpContext context) =>
-//{
-//    try
-//    {
-//        context.Response.StatusCode = StatusCodes.Status200OK;
-//        var users = await Task.Run(() =>
-//        {
-//            return db.users;
-//        });
 
-//        context.Response.ContentType = "application/json";
-
-//        await context.Response.WriteAsJsonAsync(users);
-//    }
-//    catch(Exception ex)
-//    {
-//        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-
-//        await context.Response.WriteAsync(ex.Message);
-//    }
-//});
 
 
 //app.MapGet("/json", async () =>
