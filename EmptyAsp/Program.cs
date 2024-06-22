@@ -98,7 +98,11 @@ app.MapGet("/getAllUsers", async (HttpContext context) =>
 app.Run();
 
 
-record class LoginDto(string name, string password);
+public class LoginDto()
+{
+    string Name { get; init; }
+    string Password { get; init; }
+}
 public class UserData
 {
     public Guid Id { get; } = Guid.NewGuid();
